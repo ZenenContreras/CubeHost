@@ -1,0 +1,12 @@
+# Wildcard: cualquier subdominio de *.localhost va al container-manager proxy
+*.localhost {
+    reverse_proxy container-manager:5000
+
+    # Rate limiting por IP: 60 req/min
+    rate_limit {remote_host} 60r/m
+}
+
+# Dashboard frontend en localhost raíz
+localhost {
+    reverse_proxy frontend:3000
+}

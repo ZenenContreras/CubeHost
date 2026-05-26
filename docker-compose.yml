@@ -1,0 +1,55 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - cubehost-network
+    depends_on:
+      - frontend
+      - container-manager
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    networks:
+      - cubehost-network
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    env_file: ./api/.env
+    networks:
+      - cubehost-network
+    depends_on:
+      - container-manager
+    volumes:
+      - api_data:/data
+    restart: unless-stopped
+
+  container-manager:
+    build: ./container-manager
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # acceso al Docker daemon
+      - containers_data:/data
+      - repos_cache:/tmp/cubehost-repos
+    networks:
+      - cubehost-network
+    restart: unless-stopped
+
+networks:
+  cubehost-network:
+    driver: bridge
+    name: cubehost-network
+
+volumes:
+  caddy_data:
+  caddy_config:
+  api_data:
+  containers_data:
+  repos_cache:
