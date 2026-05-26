@@ -103,6 +103,11 @@ function start() {
   server.listen(config.proxyPort, () => {
     console.log(`[proxy] Listening on port ${config.proxyPort}`);
   });
+
+  server.on('error', (err) => {
+    console.error(`[proxy] Failed to start: ${err.message}`);
+    process.exit(1);
+  });
 }
 
 module.exports = { start };
