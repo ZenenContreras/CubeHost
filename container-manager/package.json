@@ -1,0 +1,22 @@
+{
+  "name": "cubehost-container-manager",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.6.0",
+    "dockerode": "^4.0.2",
+    "express": "^4.19.2",
+    "http-proxy": "^1.18.1",
+    "morgan": "^1.10.0",
+    "node-cron": "^3.0.3",
+    "simple-git": "^3.25.0",
+    "tar-fs": "^3.0.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.3"
+  }
+}
