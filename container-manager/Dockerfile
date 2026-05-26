@@ -1,7 +1,7 @@
 FROM node:20-alpine
 
-# docker CLI needed for docker compose commands
-RUN apk add --no-cache docker-cli docker-cli-compose git
+# Build tools for native modules (better-sqlite3) + docker CLI + git
+RUN apk add --no-cache python3 make g++ docker-cli docker-cli-compose git
 
 WORKDIR /app
 

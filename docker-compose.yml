@@ -3,15 +3,13 @@ services:
     image: caddy:2-alpine
     ports:
       - "80:80"
-      - "443:443"
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
     networks:
       - cubehost-network
     depends_on:
       - frontend
+      - api
       - container-manager
     restart: unless-stopped
 
@@ -24,18 +22,31 @@ services:
   api:
     build: ./api
     env_file: ./api/.env
+    environment:
+      - CONTAINER_MANAGER_URL=http://container-manager:4001
+      - FRONTEND_URL=http://localhost
+      - DB_PATH=/data/cubehost.db
+    volumes:
+      - api_data:/data
     networks:
       - cubehost-network
     depends_on:
       - container-manager
-    volumes:
-      - api_data:/data
     restart: unless-stopped
 
   container-manager:
     build: ./container-manager
+    environment:
+      - API_PORT=4001
+      - PROXY_PORT=5000
+      - DOCKER_NETWORK=cubehost-network
+      - DB_PATH=/data/containers.db
+      - WORK_DIR=/tmp/cubehost-repos
+      - INACTIVITY_TIMEOUT_MS=1800000
+      - CONTAINER_CPUS=0.5
+      - CONTAINER_MEMORY_MB=256
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock  # acceso al Docker daemon
+      - /var/run/docker.sock:/var/run/docker.sock
       - containers_data:/data
       - repos_cache:/tmp/cubehost-repos
     networks:
@@ -48,8 +59,6 @@ networks:
     name: cubehost-network
 
 volumes:
-  caddy_data:
-  caddy_config:
   api_data:
   containers_data:
   repos_cache:
