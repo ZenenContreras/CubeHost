@@ -9,14 +9,14 @@ function usernameFromUser(user) {
 function list(req, res) {
   const projects = getDb()
     .prepare('SELECT * FROM projects WHERE roble_user_id = ? ORDER BY created_at DESC')
-    .all(String(req.user.id || req.user._id));
+    .all(req.user.sub);
   res.json(projects);
 }
 
 function getOne(req, res) {
   const project = getDb()
     .prepare('SELECT * FROM projects WHERE id = ? AND roble_user_id = ?')
-    .get(Number(req.params.id), String(req.user.id || req.user._id));
+    .get(Number(req.params.id), req.user.sub);
 
   if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' });
   res.json(project);
@@ -39,7 +39,7 @@ async function create(req, res, next) {
       return res.status(400).json({ error: 'El nombre solo puede contener letras minúsculas, números y guiones' });
     }
 
-    const robleUserId = String(req.user.id || req.user._id);
+    const robleUserId = req.user.sub;
     const username = usernameFromUser(req.user);
     const db = getDb();
 
@@ -93,7 +93,7 @@ async function deployInBackground(project) {
 
 async function remove(req, res, next) {
   try {
-    const robleUserId = String(req.user.id || req.user._id);
+    const robleUserId = req.user.sub;
     const db = getDb();
     const project = db
       .prepare('SELECT * FROM projects WHERE id = ? AND roble_user_id = ?')
@@ -116,7 +116,7 @@ async function remove(req, res, next) {
 
 async function start(req, res, next) {
   try {
-    const robleUserId = String(req.user.id || req.user._id);
+    const robleUserId = req.user.sub;
     const project = getDb()
       .prepare('SELECT * FROM projects WHERE id = ? AND roble_user_id = ?')
       .get(Number(req.params.id), robleUserId);
@@ -135,7 +135,7 @@ async function start(req, res, next) {
 
 async function stop(req, res, next) {
   try {
-    const robleUserId = String(req.user.id || req.user._id);
+    const robleUserId = req.user.sub;
     const project = getDb()
       .prepare('SELECT * FROM projects WHERE id = ? AND roble_user_id = ?')
       .get(Number(req.params.id), robleUserId);
@@ -154,7 +154,7 @@ async function stop(req, res, next) {
 
 async function status(req, res, next) {
   try {
-    const robleUserId = String(req.user.id || req.user._id);
+    const robleUserId = req.user.sub;
     const project = getDb()
       .prepare('SELECT * FROM projects WHERE id = ? AND roble_user_id = ?')
       .get(Number(req.params.id), robleUserId);
