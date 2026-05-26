@@ -1,12 +1,21 @@
-# Wildcard: cualquier subdominio de *.localhost va al container-manager proxy
-*.localhost {
-    reverse_proxy container-manager:5000
-
-    # Rate limiting por IP: 60 req/min
-    rate_limit {remote_host} 60r/m
+{
+    auto_https off
 }
 
-# Dashboard frontend en localhost raíz
-localhost {
-    reverse_proxy frontend:3000
+# Proyectos desplegados por usuarios
+http://*.localhost {
+    reverse_proxy container-manager:5000
+}
+
+# Dashboard + API
+http://localhost {
+    # Rutas del API van al backend
+    handle /api/* {
+        reverse_proxy api:4000
+    }
+
+    # Todo lo demás va al frontend
+    handle {
+        reverse_proxy frontend:80
+    }
 }
