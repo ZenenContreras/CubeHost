@@ -41,6 +41,27 @@ function sanitizeComposeFile(repoPath) {
   }
 }
 
+async function applyResourceLimits(containerId) {
+  const cpus = parseFloat(process.env.CONTAINER_CPUS || config.containerCpus || '0.5');
+  const memoryMb = parseInt(process.env.CONTAINER_MEMORY_MB || config.containerMemoryMb || '256', 10);
+
+  const cpuQuota = Math.round(cpus * 100_000);
+  const memoryBytes = memoryMb * 1024 * 1024;
+
+  try {
+    const container = docker.client.getContainer(containerId);
+    await container.update({
+      CpuPeriod: 100_000,
+      CpuQuota: cpuQuota,
+      Memory: memoryBytes,
+      MemorySwap: memoryBytes,
+    });
+    console.log(`[deploy] Resource limits applied: ${cpus} CPUs, ${memoryMb}MB RAM`);
+  } catch (err) {
+    console.warn(`[deploy] Could not apply resource limits: ${err.message}`);
+  }
+}
+
 async function deployDockerfile(projectId, repoUrl, internalPort) {
   const repoPath = await cloneRepo(repoUrl, projectId);
   const imageName = `cubehost-${projectId}`;
@@ -95,15 +116,14 @@ async function deployCompose(projectId, repoUrl, internalPort) {
   );
 
   // Obtener todos los IDs de contenedores del compose
-  const { execSync: exec } = require('child_process');
   let allIds = '';
   try {
-    allIds = exec(`docker compose ps -q`, { cwd: repoPath, encoding: 'utf8' }).trim();
+    allIds = execSync(`docker compose ps -q`, { cwd: repoPath, encoding: 'utf8' }).trim();
   } catch (e) {
     console.warn(`[deploy] Fallback a nombre de proyecto explícito: ${e.message}`);
   }
   if (!allIds) {
-    allIds = exec(
+    allIds = execSync(
       `docker compose -p ${projectName} ps -q`,
       { cwd: repoPath, encoding: 'utf8' }
     ).trim();
@@ -166,6 +186,9 @@ async function deployCompose(projectId, repoUrl, internalPort) {
     actualPort = Number(firstPort);
     console.warn(`[deploy] Port ${internalPort} not found on ${targetContainerName}, using detected port: ${actualPort}`);
   }
+
+  // Aplicar límites de CPU y RAM al contenedor target
+  await applyResourceLimits(targetContainerId);
 
   // Obtener la IP real del contenedor en cubehost-network para el proxy
   const finalInspect = await docker.inspectContainer(targetContainerId);
