@@ -89,7 +89,12 @@ async function removeImage(imageName) {
   } catch { /* ignore if image doesn't exist */ }
 }
 
+async function updateContainer(containerId, updateConfig) {
+  return docker.getContainer(containerId).update(updateConfig);
+}
+
 module.exports = {
+  client: docker,           // instancia Dockerode cruda (usada en deployer)
   ensureNetwork,
   buildImage,
   runContainer,
@@ -98,4 +103,5 @@ module.exports = {
   removeContainer,
   inspectContainer,
   removeImage,
+  updateContainer,
 };
