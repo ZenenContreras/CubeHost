@@ -13,15 +13,24 @@ async function ensureNetwork() {
 }
 
 async function buildImage(tarStream, imageName) {
+  console.log(`[docker] Starting Dockerfile build for image ${imageName}...`);
   return new Promise((resolve, reject) => {
     docker.buildImage(tarStream, { t: imageName }, (err, stream) => {
       if (err) return reject(err);
-      docker.modem.followProgress(stream, (err, output) => {
-        if (err) return reject(err);
-        const last = output[output.length - 1];
-        if (last?.error) return reject(new Error(last.error));
-        resolve(imageName);
-      });
+      docker.modem.followProgress(
+        stream,
+        (err, output) => {
+          if (err) return reject(err);
+          const last = output[output.length - 1];
+          if (last?.error) return reject(new Error(last.error));
+          resolve(imageName);
+        },
+        (event) => {
+          if (event.stream) {
+            process.stdout.write(`[docker build] ${event.stream}`);
+          }
+        }
+      );
     });
   });
 }
@@ -80,7 +89,12 @@ async function removeImage(imageName) {
   } catch { /* ignore if image doesn't exist */ }
 }
 
+async function updateContainer(containerId, updateConfig) {
+  return docker.getContainer(containerId).update(updateConfig);
+}
+
 module.exports = {
+  client: docker,           // instancia Dockerode cruda (usada en deployer)
   ensureNetwork,
   buildImage,
   runContainer,
@@ -89,4 +103,5 @@ module.exports = {
   removeContainer,
   inspectContainer,
   removeImage,
+  updateContainer,
 };

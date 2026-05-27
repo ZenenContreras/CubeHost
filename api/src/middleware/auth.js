@@ -9,6 +9,7 @@ async function requireAuth(req, res, next) {
   const token = header.slice(7);
   try {
     const response = await robleService.verifyToken(token);
+    console.log('verifyToken response:', response);
     // Roble devuelve { valid: true, user: { sub, email, dbName, role, sessionId } }
     if (!response.valid) return res.status(401).json({ error: 'Token inválido o expirado' });
     req.user = response.user; // { sub, email, dbName, role, sessionId }

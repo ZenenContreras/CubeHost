@@ -2,8 +2,8 @@
     auto_https off
 }
 
-# Proyectos desplegados por usuarios
-http://*.localhost {
+# Proyectos desplegados por usuarios — dos niveles: nombre-proyecto.usuario.localhost
+http://*.*.localhost {
     reverse_proxy container-manager:5000
 }
 

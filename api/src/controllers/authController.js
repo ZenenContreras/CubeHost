@@ -25,6 +25,11 @@ async function signup(req, res, next) {
     const data = await robleService.signup(email, password, name);
     res.status(201).json(data);
   } catch (err) {
+    if (err.response?.status === 400) {
+      const details = err.response.data?.message;
+      const errorMsg = Array.isArray(details) ? details.join('. ') : (details || 'Datos de registro inválidos');
+      return res.status(400).json({ error: errorMsg });
+    }
     if (err.response?.status === 409) {
       return res.status(409).json({ error: 'El correo ya está registrado' });
     }
@@ -41,6 +46,12 @@ async function signupDirect(req, res, next) {
     const data = await robleService.signupDirect(email, password, name);
     res.status(201).json(data);
   } catch (err) {
+    console.error('Error in signupDirect:', err.response?.data || err.message);
+    if (err.response?.status === 400) {
+      const details = err.response.data?.message;
+      const errorMsg = Array.isArray(details) ? details.join('. ') : (details || 'Datos de registro inválidos');
+      return res.status(400).json({ error: errorMsg });
+    }
     next(err);
   }
 }

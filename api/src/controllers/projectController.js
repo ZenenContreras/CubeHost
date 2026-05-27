@@ -6,11 +6,41 @@ function usernameFromUser(user) {
   return (user.email || '').split('@')[0].toLowerCase().replace(/[^a-z0-9.-]/g, '');
 }
 
-function list(req, res) {
-  const projects = getDb()
-    .prepare('SELECT * FROM projects WHERE roble_user_id = ? ORDER BY created_at DESC')
-    .all(req.user.sub);
-  res.json(projects);
+async function list(req, res, next) {
+  try {
+    const projects = getDb()
+      .prepare('SELECT * FROM projects WHERE roble_user_id = ? ORDER BY created_at DESC')
+      .all(req.user.sub);
+
+    const updatedProjects = await Promise.all(
+      projects.map(async (project) => {
+        if (!project.container_id) return project;
+        try {
+          const info = await containerService.getContainerStatus(project.container_id);
+          if (project.status !== info.status) {
+            getDb()
+              .prepare('UPDATE projects SET status = ? WHERE id = ?')
+              .run(info.status, project.id);
+            project.status = info.status;
+          }
+        } catch (err) {
+          // Si el contenedor fue borrado de forma manual en Docker
+          if (err.response?.status === 404 || err.message.includes('404')) {
+            const stoppedStatus = 'stopped';
+            getDb()
+              .prepare('UPDATE projects SET status = ? WHERE id = ?')
+              .run(stoppedStatus, project.id);
+            project.status = stoppedStatus;
+          }
+        }
+        return project;
+      })
+    );
+
+    res.json(updatedProjects);
+  } catch (err) {
+    next(err);
+  }
 }
 
 function getOne(req, res) {

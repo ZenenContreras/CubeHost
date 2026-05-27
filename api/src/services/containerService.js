@@ -3,7 +3,7 @@ const config = require('../config');
 
 const client = axios.create({
   baseURL: config.containerManager.url,
-  timeout: 120_000, // builds can take time
+  timeout: 300_000, // builds can take time, increased to 5 minutes
 });
 
 async function deployProject({ projectId, repoUrl, containerType, port, subdomain }) {

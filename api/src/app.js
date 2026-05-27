@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth');
 const projectRoutes = require('./routes/projects');
 
 const app = express();
+app.set('trust proxy', 1); // Confiar en el proxy de Caddy para leer las IPs reales de los clientes
 
 app.use(morgan(config.nodeEnv === 'production' ? 'combined' : 'dev'));
 app.use(cors({ origin: config.frontendUrl, credentials: true }));

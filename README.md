@@ -15,6 +15,17 @@ El video incluye:
 
 ---
 
+## Documentación
+
+Puedes consultar la documentación detallada del proyecto en los siguientes enlaces:
+*   [**Documento Técnico Consolidado**](./docs/technical-doc.md): Arquitectura detallada, flujo de trabajo, seguridad y optimización de recursos.
+*   [**Documentación del Frontend**](./docs/frontend.md): Arquitectura del cliente React + Vite, diseño visual y flujos de usuario.
+*   [**API Backend**](./docs/api.md): Endpoints, autenticación con Roble y base de datos de la API REST principal.
+*   [**Container Manager**](./docs/container-manager.md): Orquestación con Dockerode, proxy de subdominios, auto-apagado y auto-despertado.
+*   [**Caddy Proxy**](./docs/caddy.md): Enrutamiento dinámico por subdominios y configuración del servidor proxy inverso.
+
+---
+
 ## Arquitectura
 
 ```

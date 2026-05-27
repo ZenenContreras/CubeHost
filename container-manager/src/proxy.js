@@ -6,10 +6,30 @@ const docker = require('./docker');
 
 const proxy = httpProxy.createProxyServer({ timeout: 30_000 });
 
+// Rate limiting: max 100 requests por minuto por subdominio
+const rateLimitMap = new Map();
+const RATE_LIMIT_MAX = 100;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+function isRateLimited(subdomain) {
+  const now = Date.now();
+  const entry = rateLimitMap.get(subdomain);
+
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimitMap.set(subdomain, { count: 1, windowStart: now });
+    return false;
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) return true;
+
+  entry.count++;
+  return false;
+}
+
 proxy.on('error', (err, req, res) => {
-  console.error(`[proxy] error for ${req.headers.host}: ${err.message}`);
+  console.error(`[proxy] error for ${req.headers.host}: ${err.code || err.message}`);
   if (!res.headersSent) {
-    res.writeHead(502, { 'Content-Type': 'text/plain' });
+    res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
   }
   res.end('502 - El contenedor no está disponible');
 });
@@ -68,6 +88,12 @@ const server = http.createServer(async (req, res) => {
     return res.end('404 - Proyecto no encontrado');
   }
 
+  // Rate limiting por subdominio
+  if (isRateLimited(subdomain)) {
+    res.writeHead(429, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end('429 - Demasiadas solicitudes, intenta más tarde');
+  }
+
   // Update last activity
   containers.touchActivity(subdomain);
 
@@ -82,8 +108,12 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // Usar siempre el nombre DNS del contenedor (las IPs cambian al reiniciar)
   const target = `http://${record.container_name}:${record.internal_port}`;
-  proxy.web(req, res, { target });
+  console.log(`[proxy] → ${req.headers.host} → ${target}`);
+  // Reescribir el Host header a "localhost" para evitar que Vite/Next/etc.
+  // rechacen la petición por hostname desconocido (403 Forbidden)
+  proxy.web(req, res, { target, headers: { host: 'localhost' } });
 });
 
 // Also proxy WebSocket connections
@@ -96,7 +126,7 @@ server.on('upgrade', async (req, socket, head) => {
 
   containers.touchActivity(subdomain);
   const target = `http://${record.container_name}:${record.internal_port}`;
-  proxy.ws(req, socket, head, { target });
+  proxy.ws(req, socket, head, { target, headers: { host: 'localhost' } });
 });
 
 function start() {

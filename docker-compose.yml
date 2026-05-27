@@ -8,9 +8,12 @@ services:
     networks:
       - cubehost-network
     depends_on:
-      - frontend
-      - api
-      - container-manager
+      frontend:
+        condition: service_started
+      api:
+        condition: service_healthy
+      container-manager:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -31,8 +34,14 @@ services:
     networks:
       - cubehost-network
     depends_on:
-      - container-manager
+      container-manager:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   container-manager:
     build: ./container-manager
@@ -52,6 +61,11 @@ services:
     networks:
       - cubehost-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 networks:
   cubehost-network:
