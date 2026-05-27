@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import CreateProjectModal from '../components/CreateProjectModal';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
 
 export default function DashboardPage() {
     const { user, logout } = useAuth();
@@ -258,37 +259,11 @@ export default function DashboardPage() {
             />
 
             {/* Modal de Confirmación de Eliminación */}
-            {projectToDelete && (
-                <div className="modal-overlay" onClick={() => setProjectToDelete(null)}>
-                    <div className="modal-card modal-confirm" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2 style={{ color: '#ef4444' }}>¿Eliminar Proyecto?</h2>
-                            <button className="btn-close" onClick={() => setProjectToDelete(null)}>&times;</button>
-                        </div>
-                        <div className="modal-body" style={{ padding: '24px', textAlign: 'left' }}>
-                            <p style={{ margin: '0 0 12px 0', fontSize: '15px', color: 'var(--text-h)' }}>
-                                Estás a punto de eliminar permanentemente el proyecto <strong>{projectToDelete.name}</strong> y todos sus contenedores Docker asociados.
-                            </p>
-                            <p style={{ margin: '0', fontSize: '13px', color: 'var(--text)' }}>
-                                Esta acción es irreversible y tu subdominio dejará de funcionar inmediatamente.
-                            </p>
-                        </div>
-                        <div className="modal-actions" style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', background: 'var(--code-bg)' }}>
-                            <button type="button" className="btn-cancel" onClick={() => setProjectToDelete(null)}>
-                                Cancelar
-                            </button>
-                            <button
-                                type="button"
-                                className="btn-submit"
-                                style={{ background: '#ef4444', color: 'white' }}
-                                onClick={executeDelete}
-                            >
-                                Confirmar Eliminación
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <DeleteConfirmModal
+                project={projectToDelete}
+                onCancel={() => setProjectToDelete(null)}
+                onConfirm={executeDelete}
+            />
 
             {/* Estilos locales para el Dashboard */}
             <style>{`
@@ -694,6 +669,153 @@ export default function DashboardPage() {
         .btn-start:disabled, .btn-stop:disabled, .btn-delete:disabled {
           opacity: 0.5;
           cursor: not-allowed;
+        }
+
+        /* Premium Danger Modal Styles */
+        .modal-confirm {
+          max-width: 480px !important;
+          border: 1px solid rgba(239, 68, 68, 0.2) !important;
+          box-shadow: 0 20px 25px -5px rgba(239, 68, 68, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+          background: rgba(255, 255, 255, 0.8) !important;
+          backdrop-filter: blur(16px);
+        }
+
+        .modal-header-danger {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 20px 24px;
+          border-bottom: 1px solid rgba(239, 68, 68, 0.1);
+        }
+
+        .alert-icon-container {
+          background: rgba(239, 68, 68, 0.1);
+          color: #ef4444;
+          padding: 8px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          animation: shake 0.5s ease-in-out;
+        }
+
+        .modal-header-danger h2 {
+          font-size: 19px;
+          font-weight: 700;
+          margin: 0;
+          color: #ef4444;
+          flex: 1;
+        }
+
+        .btn-close-danger {
+          background: transparent;
+          border: none;
+          font-size: 24px;
+          color: var(--text);
+          cursor: pointer;
+          transition: color 0.2s;
+        }
+
+        .btn-close-danger:hover {
+          color: #ef4444;
+        }
+
+        .modal-body-danger {
+          padding: 24px;
+          text-align: left;
+        }
+
+        .danger-highlight {
+          margin: 0 0 16px 0;
+          font-size: 15px;
+          color: var(--text-h);
+          line-height: 1.5;
+        }
+
+        .project-name-highlight {
+          font-weight: 700;
+          color: #ef4444;
+          background: rgba(239, 68, 68, 0.05);
+          padding: 2px 6px;
+          border-radius: 4px;
+          border: 1px solid rgba(239, 68, 68, 0.1);
+        }
+
+        .danger-box {
+          background: rgba(239, 68, 68, 0.02);
+          border: 1px solid rgba(239, 68, 68, 0.08);
+          border-radius: 8px;
+          padding: 14px 12px;
+          font-size: 13px;
+          color: var(--text);
+          line-height: 1.6;
+        }
+
+        .danger-box ul {
+          padding-left: 16px !important;
+        }
+
+        .danger-box li {
+          margin-bottom: 8px;
+        }
+
+        .danger-box li:last-child {
+          margin-bottom: 0;
+        }
+
+        .modal-actions-danger {
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+          padding: 16px 24px;
+          background: rgba(239, 68, 68, 0.02);
+          border-top: 1px solid rgba(239, 68, 68, 0.08);
+        }
+
+        .btn-cancel-danger {
+          background: transparent;
+          border: 1px solid var(--border);
+          color: var(--text-h);
+          padding: 10px 16px;
+          border-radius: 8px;
+          font-size: 13.5px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+
+        .btn-cancel-danger:hover {
+          background: var(--code-bg);
+        }
+
+        .btn-submit-danger {
+          background: #ef4444;
+          border: 1px solid #dc2626;
+          color: white;
+          padding: 10px 18px;
+          border-radius: 8px;
+          font-size: 13.5px;
+          font-weight: 600;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.2);
+          transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+        }
+
+        .btn-submit-danger:hover {
+          background: #dc2626;
+          box-shadow: 0 6px 12px -2px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-submit-danger:active {
+          transform: scale(0.98);
+        }
+
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          20%, 60% { transform: translateX(-4px); }
+          40%, 80% { transform: translateX(4px); }
         }
       `}</style>
         </div>
