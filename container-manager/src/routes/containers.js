@@ -13,7 +13,7 @@ router.post('/deploy', async (req, res, next) => {
       return res.status(400).json({ error: 'Faltan parámetros requeridos' });
     }
 
-    const { containerId, containerName } = await deploy({
+    const { containerId, containerName, containerIp, actualPort } = await deploy({
       projectId,
       repoUrl,
       containerType,
@@ -25,8 +25,9 @@ router.post('/deploy', async (req, res, next) => {
       subdomain,
       container_id: containerId,
       container_name: containerName,
+      container_ip: containerIp || null,
       container_type: containerType,
-      internal_port: Number(port),
+      internal_port: actualPort || Number(port),
       status: 'running',
     });
 
@@ -85,6 +86,9 @@ router.get('/:containerId/status', async (req, res, next) => {
       lastActivity: record.last_activity,
     });
   } catch (err) {
+    if (err.statusCode === 404) {
+      return res.status(404).json({ error: 'Contenedor no encontrado en Docker' });
+    }
     next(err);
   }
 });

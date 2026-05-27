@@ -7,9 +7,9 @@ const docker = require('./docker');
 const proxy = httpProxy.createProxyServer({ timeout: 30_000 });
 
 proxy.on('error', (err, req, res) => {
-  console.error(`[proxy] error for ${req.headers.host}: ${err.message}`);
+  console.error(`[proxy] error for ${req.headers.host}: ${err.code || err.message}`);
   if (!res.headersSent) {
-    res.writeHead(502, { 'Content-Type': 'text/plain' });
+    res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' });
   }
   res.end('502 - El contenedor no está disponible');
 });
@@ -82,7 +82,10 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  const target = `http://${record.container_name}:${record.internal_port}`;
+  // Usar IP directa si está disponible para evitar problemas de resolución DNS
+  const host = record.container_ip || record.container_name;
+  const target = `http://${host}:${record.internal_port}`;
+  console.log(`[proxy] → ${req.headers.host} → ${target}`);
   proxy.web(req, res, { target });
 });
 

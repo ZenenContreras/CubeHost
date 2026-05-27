@@ -13,15 +13,24 @@ async function ensureNetwork() {
 }
 
 async function buildImage(tarStream, imageName) {
+  console.log(`[docker] Starting Dockerfile build for image ${imageName}...`);
   return new Promise((resolve, reject) => {
     docker.buildImage(tarStream, { t: imageName }, (err, stream) => {
       if (err) return reject(err);
-      docker.modem.followProgress(stream, (err, output) => {
-        if (err) return reject(err);
-        const last = output[output.length - 1];
-        if (last?.error) return reject(new Error(last.error));
-        resolve(imageName);
-      });
+      docker.modem.followProgress(
+        stream,
+        (err, output) => {
+          if (err) return reject(err);
+          const last = output[output.length - 1];
+          if (last?.error) return reject(new Error(last.error));
+          resolve(imageName);
+        },
+        (event) => {
+          if (event.stream) {
+            process.stdout.write(`[docker build] ${event.stream}`);
+          }
+        }
+      );
     });
   });
 }

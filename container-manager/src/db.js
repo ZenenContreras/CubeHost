@@ -13,27 +13,32 @@ function getDb() {
         subdomain      TEXT    UNIQUE NOT NULL,
         container_id   TEXT    NOT NULL,
         container_name TEXT    NOT NULL,
+        container_ip   TEXT,
         container_type TEXT    NOT NULL,
         internal_port  INTEGER NOT NULL,
         status         TEXT    NOT NULL DEFAULT 'running',
         last_activity  TEXT    DEFAULT (datetime('now'))
       );
     `);
+    // Migración: añadir container_ip si no existe (compatibilidad con DB existente)
+    try {
+      db.exec('ALTER TABLE containers ADD COLUMN container_ip TEXT');
+    } catch { /* columna ya existe */ }
   }
   return db;
 }
 
 const containers = {
   upsert(data) {
+    const db = getDb();
+    // Eliminar cualquier registro previo conflictivo para evitar errores de restricción UNIQUE
+    db.prepare('DELETE FROM containers WHERE project_id = ? OR subdomain = ?')
+      .run(data.project_id, data.subdomain);
+
     getDb()
       .prepare(`
-        INSERT INTO containers (project_id, subdomain, container_id, container_name, container_type, internal_port, status)
-        VALUES (@project_id, @subdomain, @container_id, @container_name, @container_type, @internal_port, @status)
-        ON CONFLICT(project_id) DO UPDATE SET
-          container_id   = excluded.container_id,
-          container_name = excluded.container_name,
-          status         = excluded.status,
-          last_activity  = datetime('now')
+        INSERT INTO containers (project_id, subdomain, container_id, container_name, container_ip, container_type, internal_port, status)
+        VALUES (@project_id, @subdomain, @container_id, @container_name, @container_ip, @container_type, @internal_port, @status)
       `)
       .run(data);
   },
