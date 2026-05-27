@@ -6,6 +6,26 @@ const docker = require('./docker');
 
 const proxy = httpProxy.createProxyServer({ timeout: 30_000 });
 
+// Rate limiting: max 100 requests por minuto por subdominio
+const rateLimitMap = new Map();
+const RATE_LIMIT_MAX = 100;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+function isRateLimited(subdomain) {
+  const now = Date.now();
+  const entry = rateLimitMap.get(subdomain);
+
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimitMap.set(subdomain, { count: 1, windowStart: now });
+    return false;
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) return true;
+
+  entry.count++;
+  return false;
+}
+
 proxy.on('error', (err, req, res) => {
   console.error(`[proxy] error for ${req.headers.host}: ${err.code || err.message}`);
   if (!res.headersSent) {
@@ -66,6 +86,12 @@ const server = http.createServer(async (req, res) => {
   if (!record) {
     res.writeHead(404);
     return res.end('404 - Proyecto no encontrado');
+  }
+
+  // Rate limiting por subdominio
+  if (isRateLimited(subdomain)) {
+    res.writeHead(429, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end('429 - Demasiadas solicitudes, intenta más tarde');
   }
 
   // Update last activity
