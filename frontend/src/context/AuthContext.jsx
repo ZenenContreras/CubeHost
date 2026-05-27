@@ -7,6 +7,29 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   // Al montar el componente, verificamos si hay una sesión activa en localStorage
+  // Función auxiliar para formatear y deducir el nombre a partir del email si no viene de la API de Roble
+  function formatUserName(userData) {
+    if (!userData) return null;
+    const savedName = localStorage.getItem('userName');
+    if (savedName) {
+      return { ...userData, name: savedName };
+    }
+    if (userData.name) {
+      localStorage.setItem('userName', userData.name);
+      return userData;
+    }
+    if (userData.email) {
+      const deducedName = userData.email
+        .split('@')[0]
+        .split('.')
+        .map(s => s.charAt(0).toUpperCase() + s.slice(1))
+        .join(' ');
+      return { ...userData, name: deducedName };
+    }
+    return userData;
+  }
+
+  // Al montar el componente, verificamos si hay una sesión activa en localStorage
   useEffect(() => {
     async function checkSession() {
       const token = localStorage.getItem('accessToken');
@@ -25,7 +48,7 @@ export function AuthProvider({ children }) {
 
         if (res.ok) {
           const userData = await res.json();
-          setUser(userData);
+          setUser(formatUserName(userData));
         } else if (res.status === 401) {
           // Si el token expiró, intentamos renovarlo con el refreshToken
           await refreshSessionTokens();
@@ -72,7 +95,7 @@ export function AuthProvider({ children }) {
 
         if (meRes.ok) {
           const userData = await meRes.json();
-          setUser(userData);
+          setUser(formatUserName(userData));
         } else {
           logout();
         }
@@ -107,7 +130,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('refreshToken', data.refreshToken);
 
       // Guardar información básica del usuario en el estado
-      setUser(data.user);
+      setUser(formatUserName(data.user));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -157,6 +180,7 @@ export function AuthProvider({ children }) {
     // Limpiar localStorage y estado local
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userName');
     setUser(null);
   }
 

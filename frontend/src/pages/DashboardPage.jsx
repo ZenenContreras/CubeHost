@@ -8,6 +8,7 @@ export default function DashboardPage() {
     const [loadingProjects, setLoadingProjects] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [actionLoading, setActionLoading] = useState(null); // ID del proyecto en acción
+    const [projectToDelete, setProjectToDelete] = useState(null); // Proyecto pendiente de eliminación
 
     // Función para obtener proyectos de la API
     const fetchProjects = async () => {
@@ -90,12 +91,17 @@ export default function DashboardPage() {
         }
     };
 
-    // Eliminar proyecto (DELETE /api/projects/:id)
-    const handleDelete = async (id) => {
-        if (!confirm('¿Estás seguro de que deseas eliminar este proyecto y su contenedor permanentemente?')) {
-            return;
-        }
+    // Abrir confirmación de eliminación
+    const handleDelete = (project) => {
+        setProjectToDelete(project);
+    };
+
+    // Ejecutar eliminación real del proyecto y contenedor (DELETE /api/projects/:id)
+    const executeDelete = async () => {
+        if (!projectToDelete) return;
+        const id = projectToDelete.id;
         setActionLoading(id);
+        setProjectToDelete(null); // Cerrar confirmación
         try {
             const token = localStorage.getItem('accessToken');
             const res = await fetch(`/api/projects/${id}`, {
@@ -230,7 +236,7 @@ export default function DashboardPage() {
 
                                             <button
                                                 className="btn-delete"
-                                                onClick={() => handleDelete(project.id)}
+                                                onClick={() => handleDelete(project)}
                                                 disabled={isWorking}
                                             >
                                                 Eliminar
@@ -250,6 +256,39 @@ export default function DashboardPage() {
                 onClose={() => setIsModalOpen(false)}
                 onProjectCreated={handleProjectCreated}
             />
+
+            {/* Modal de Confirmación de Eliminación */}
+            {projectToDelete && (
+                <div className="modal-overlay" onClick={() => setProjectToDelete(null)}>
+                    <div className="modal-card modal-confirm" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2 style={{ color: '#ef4444' }}>¿Eliminar Proyecto?</h2>
+                            <button className="btn-close" onClick={() => setProjectToDelete(null)}>&times;</button>
+                        </div>
+                        <div className="modal-body" style={{ padding: '24px', textAlign: 'left' }}>
+                            <p style={{ margin: '0 0 12px 0', fontSize: '15px', color: 'var(--text-h)' }}>
+                                Estás a punto de eliminar permanentemente el proyecto <strong>{projectToDelete.name}</strong> y todos sus contenedores Docker asociados.
+                            </p>
+                            <p style={{ margin: '0', fontSize: '13px', color: 'var(--text)' }}>
+                                Esta acción es irreversible y tu subdominio dejará de funcionar inmediatamente.
+                            </p>
+                        </div>
+                        <div className="modal-actions" style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', background: 'var(--code-bg)' }}>
+                            <button type="button" className="btn-cancel" onClick={() => setProjectToDelete(null)}>
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                className="btn-submit"
+                                style={{ background: '#ef4444', color: 'white' }}
+                                onClick={executeDelete}
+                            >
+                                Confirmar Eliminación
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Estilos locales para el Dashboard */}
             <style>{`

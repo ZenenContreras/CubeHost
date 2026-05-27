@@ -1,7 +1,10 @@
 const { Router } = require('express');
+const path = require('path');
+const { execSync } = require('child_process');
 const { containers } = require('../db');
 const { deploy } = require('../deployer');
 const docker = require('../docker');
+const config = require('../config');
 
 const router = Router();
 
@@ -40,7 +43,14 @@ router.post('/deploy', async (req, res, next) => {
 // POST /containers/:containerId/stop
 router.post('/:containerId/stop', async (req, res, next) => {
   try {
-    await docker.stopContainer(req.params.containerId);
+    const record = containers.findById(req.params.containerId);
+    if (record && record.container_type === 'compose') {
+      const repoPath = path.join(config.workDir, String(record.project_id));
+      const projectName = `cubehost-${record.project_id}`;
+      execSync(`docker compose -p ${projectName} stop`, { cwd: repoPath, stdio: 'pipe' });
+    } else {
+      await docker.stopContainer(req.params.containerId);
+    }
     containers.updateStatus(req.params.containerId, 'stopped');
     res.json({ status: 'stopped' });
   } catch (err) {
@@ -51,7 +61,14 @@ router.post('/:containerId/stop', async (req, res, next) => {
 // POST /containers/:containerId/start
 router.post('/:containerId/start', async (req, res, next) => {
   try {
-    await docker.startContainer(req.params.containerId);
+    const record = containers.findById(req.params.containerId);
+    if (record && record.container_type === 'compose') {
+      const repoPath = path.join(config.workDir, String(record.project_id));
+      const projectName = `cubehost-${record.project_id}`;
+      execSync(`docker compose -p ${projectName} start`, { cwd: repoPath, stdio: 'pipe' });
+    } else {
+      await docker.startContainer(req.params.containerId);
+    }
     containers.updateStatus(req.params.containerId, 'running');
     res.json({ status: 'running' });
   } catch (err) {
@@ -63,10 +80,22 @@ router.post('/:containerId/start', async (req, res, next) => {
 router.delete('/:containerId', async (req, res, next) => {
   try {
     const record = containers.findById(req.params.containerId);
-    await docker.removeContainer(req.params.containerId);
     if (record) {
+      if (record.container_type === 'compose') {
+        const repoPath = path.join(config.workDir, String(record.project_id));
+        const projectName = `cubehost-${record.project_id}`;
+        try {
+          execSync(`docker compose -p ${projectName} down --remove-orphans`, { cwd: repoPath, stdio: 'pipe' });
+        } catch (e) {
+          console.warn(`[delete] docker compose down failed: ${e.message}`);
+        }
+      } else {
+        await docker.removeContainer(req.params.containerId);
+      }
       await docker.removeImage(`cubehost-${record.project_id}`).catch(() => {});
       containers.remove(req.params.containerId);
+    } else {
+      await docker.removeContainer(req.params.containerId).catch(() => {});
     }
     res.status(204).end();
   } catch (err) {
