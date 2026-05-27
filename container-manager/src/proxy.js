@@ -108,11 +108,12 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // Usar IP directa si está disponible para evitar problemas de resolución DNS
-  const host = record.container_ip || record.container_name;
-  const target = `http://${host}:${record.internal_port}`;
+  // Usar siempre el nombre DNS del contenedor (las IPs cambian al reiniciar)
+  const target = `http://${record.container_name}:${record.internal_port}`;
   console.log(`[proxy] → ${req.headers.host} → ${target}`);
-  proxy.web(req, res, { target });
+  // Reescribir el Host header a "localhost" para evitar que Vite/Next/etc.
+  // rechacen la petición por hostname desconocido (403 Forbidden)
+  proxy.web(req, res, { target, headers: { host: 'localhost' } });
 });
 
 // Also proxy WebSocket connections
@@ -125,7 +126,7 @@ server.on('upgrade', async (req, socket, head) => {
 
   containers.touchActivity(subdomain);
   const target = `http://${record.container_name}:${record.internal_port}`;
-  proxy.ws(req, socket, head, { target });
+  proxy.ws(req, socket, head, { target, headers: { host: 'localhost' } });
 });
 
 function start() {
