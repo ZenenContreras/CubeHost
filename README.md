@@ -18,36 +18,8 @@ Plataforma de hosting de páginas web autogestionada basada en contenedores Dock
 
 El sistema sigue una arquitectura modular desacoplada de microservicios orquestados mediante **Docker Compose**. Esto permite separar la lógica de negocio de la orquestación y administración a bajo nivel del daemon de Docker:
 
-```
-                      ┌─────────────────────────────────────────┐
-                      │          Navegador del Usuario          │
-                      └───────────────────┬─────────────────────┘
-                                          │ HTTP / WS (Puerto 80)
-                                          ▼
-                      ┌─────────────────────────────────────────┐
-                      │           Caddy Reverse Proxy           │
-                      │               (Puerto 80)               │
-                      └────┬──────────────────┬──────────────┬──┘
-                           │                  │              │
-              /api/*       │                  │ /            │ *.*.localhost
-      ┌────────────────────┘                  │              └──────────────────────────┐
-      ▼                                       ▼                                         ▼
-┌──────────────┐                       ┌──────────────┐                         ┌──────────────┐
-│  API Backend │                       │   Frontend   │                         │  Proxy HTTP  │
-│ (Puerto 4000)│                       │ (Puerto 80)  │                         │ (Puerto 5000)│
-└──────┬───────┘                       └──────────────┘                         └──────┬───────┘
-       │                                                                               │
-       ├─ [SQLite: api_data/cubehost.db]                                                │ Reenvío /
-       │                                                                               │ Despertar
-       ▼                                                                               ▼
-┌──────────────┐                                                                ┌──────────────┐
-│  Container   │───────────────────────────────────────────────────────────────►│ Contenedores │
-│ Manager API  │         (Orquestación vía Docker Socket / Network)             │  de Usuario  │
-│ (Puerto 4001)│                                                                │  (Aislados)  │
-└──────┬───────┘                                                                └──────────────┘
-       │
-   [SQLite: containers_data/containers.db]
-```
+![Diagrama de arquitectura](/docs/Arquitectura.png)
+
 
 #### Descripción de Componentes:
 *   **Caddy (Reverse Proxy):** Actúa como la puerta de enlace unificada del sistema en el puerto `80`. Recibe todas las peticiones del navegador y realiza el enrutamiento de primer nivel: las peticiones con prefijo `/api/*` se dirigen al servicio `api` (puerto `4000`), el tráfico de navegación al dashboard principal se redirige al `frontend` (puerto `80`), y las peticiones dinámicas de proyectos que sigan el patrón comodín `*.*.localhost` se delegan al proxy HTTP del gestor de contenedores (puerto `5000`).
