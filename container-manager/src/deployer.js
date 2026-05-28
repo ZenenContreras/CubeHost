@@ -42,8 +42,8 @@ function sanitizeComposeFile(repoPath) {
 }
 
 async function applyResourceLimits(containerId) {
-  const cpus = parseFloat(process.env.CONTAINER_CPUS || config.containerCpus || '0.5');
-  const memoryMb = parseInt(process.env.CONTAINER_MEMORY_MB || config.containerMemoryMb || '256', 10);
+  const cpus = parseFloat(process.env.CONTAINER_CPUS || (config.container && config.container.cpus) || '0.5');
+  const memoryMb = parseInt(process.env.CONTAINER_MEMORY_MB || (config.container && config.container.memoryMb) || '256', 10);
 
   const cpuQuota = Math.round(cpus * 100_000);
   const memoryBytes = memoryMb * 1024 * 1024;

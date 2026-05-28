@@ -1,4 +1,6 @@
 const http = require('http');
+const path = require('path');
+const { execSync } = require('child_process');
 const httpProxy = require('http-proxy');
 const config = require('./config');
 const { containers } = require('./db');
@@ -10,6 +12,9 @@ const proxy = httpProxy.createProxyServer({ timeout: 30_000 });
 const rateLimitMap = new Map();
 const RATE_LIMIT_MAX = 100;
 const RATE_LIMIT_WINDOW_MS = 60_000;
+
+// Deduplicar llamadas de encendido por subdominio
+const wakingPromises = new Map();
 
 function isRateLimited(subdomain) {
   const now = Date.now();
@@ -45,29 +50,70 @@ function parseSubdomain(host) {
 }
 
 async function wakeContainer(record) {
-  console.log(`[proxy] Waking container for ${record.subdomain}`);
-  await docker.startContainer(record.container_id);
-  containers.updateStatus(record.container_id, 'running');
+  const subdomain = record.subdomain;
 
-  // Wait up to 30s for the container to be ready
-  const target = `http://${record.container_name}:${record.internal_port}`;
-  const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline) {
-    const ready = await isContainerReady(target);
-    if (ready) return;
-    await sleep(500);
+  // Si ya hay un proceso de encendido en curso para este subdominio, reusarlo
+  if (wakingPromises.has(subdomain)) {
+    return wakingPromises.get(subdomain);
   }
-  throw new Error('Container did not become ready in time');
+
+  const promise = (async () => {
+    console.log(`[proxy] Waking container for ${subdomain}`);
+    try {
+      if (record.container_type === 'compose') {
+        const repoPath = path.join(config.workDir, String(record.project_id));
+        const projectName = `cubehost-${record.project_id}`;
+        execSync(`docker compose -p ${projectName} start`, { cwd: repoPath, stdio: 'pipe' });
+      } else {
+        await docker.startContainer(record.container_id);
+      }
+    } catch (err) {
+      if (err.statusCode !== 304) { // 304 = already started
+        throw err;
+      }
+    }
+    containers.updateStatus(record.container_id, 'running');
+
+    // Esperar hasta 30s a que el contenedor responda HTTP
+    const target = `http://${record.container_name}:${record.internal_port}`;
+    const deadline = Date.now() + 30_000;
+    while (Date.now() < deadline) {
+      const ready = await isContainerReady(target);
+      if (ready) {
+        // Tiempo de estabilización para servidores de desarrollo (Vite)
+        await sleep(1500);
+        return;
+      }
+      await sleep(500);
+    }
+    throw new Error('Container did not become ready in time');
+  })();
+
+  wakingPromises.set(subdomain, promise);
+
+  try {
+    await promise;
+  } finally {
+    wakingPromises.delete(subdomain);
+  }
 }
 
 function isContainerReady(target) {
   return new Promise((resolve) => {
     const req = http.get(target, (res) => {
+      console.log(`[proxy] isContainerReady success for ${target}, statusCode: ${res.statusCode}`);
       res.destroy();
       resolve(true);
     });
-    req.on('error', () => resolve(false));
-    req.setTimeout(1000, () => { req.destroy(); resolve(false); });
+    req.on('error', (err) => {
+      console.log(`[proxy] isContainerReady error for ${target}: ${err.message}`);
+      resolve(false);
+    });
+    req.setTimeout(1000, () => {
+      console.log(`[proxy] isContainerReady timeout for ${target}`);
+      req.destroy();
+      resolve(false);
+    });
   });
 }
 
@@ -76,6 +122,7 @@ function sleep(ms) {
 }
 
 const server = http.createServer(async (req, res) => {
+  console.log(`[proxy] Received request for host: ${req.headers.host}, url: ${req.url}`);
   const subdomain = parseSubdomain(req.headers.host);
   if (!subdomain) {
     res.writeHead(400);
@@ -97,19 +144,20 @@ const server = http.createServer(async (req, res) => {
   // Update last activity
   containers.touchActivity(subdomain);
 
-  // Wake up if stopped
-  if (record.status === 'stopped') {
+  // Wake up if stopped OR if not reachable (e.g. still booting up)
+  const target = `http://${record.container_name}:${record.internal_port}`;
+  const isReady = await isContainerReady(target);
+
+  if (record.status === 'stopped' || !isReady) {
     try {
       await wakeContainer(record);
     } catch (err) {
       console.error(`[proxy] Failed to wake ${subdomain}: ${err.message}`);
-      res.writeHead(503);
-      return res.end('503 - No se pudo iniciar el contenedor');
+      res.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('503 - El contenedor está iniciando. Por favor, recarga en unos segundos.');
     }
   }
 
-  // Usar siempre el nombre DNS del contenedor (las IPs cambian al reiniciar)
-  const target = `http://${record.container_name}:${record.internal_port}`;
   console.log(`[proxy] → ${req.headers.host} → ${target}`);
   // Reescribir el Host header a "localhost" para evitar que Vite/Next/etc.
   // rechacen la petición por hostname desconocido (403 Forbidden)

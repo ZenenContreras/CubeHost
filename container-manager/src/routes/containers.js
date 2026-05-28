@@ -70,6 +70,9 @@ router.post('/:containerId/start', async (req, res, next) => {
       await docker.startContainer(req.params.containerId);
     }
     containers.updateStatus(req.params.containerId, 'running');
+    if (record) {
+      containers.touchActivity(record.subdomain);
+    }
     res.json({ status: 'running' });
   } catch (err) {
     next(err);
