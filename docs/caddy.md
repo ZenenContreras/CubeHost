@@ -13,7 +13,7 @@ Caddy actúa como punto de entrada único de la plataforma. Escucha en el puerto
     auto_https off
 }
 
-http://*.localhost {
+http://*.*.localhost {
     reverse_proxy container-manager:5000
 }
 
@@ -50,9 +50,9 @@ http://localhost {
 
 ---
 
-### `http://*.localhost` — Proyectos desplegados
+### `http://*.*.localhost` — Proyectos desplegados (Dos niveles)
 
-Cualquier subdominio de `*.localhost` se reenvía al **proxy del container-manager** (`container-manager:5000`), que se encarga de:
+Cualquier subdominio de dos niveles (`nombreProyecto.nombreUsuario.localhost`) se reenvía al **proxy del container-manager** (`container-manager:5000`), que se encarga de:
 
 - Identificar el proyecto por el subdominio
 - Despertar el contenedor si está inactivo
@@ -73,39 +73,17 @@ Deshabilita la obtención automática de certificados TLS. En desarrollo local c
 
 ---
 
-## Agregar rate limiting (pendiente)
+## Control de sobrecargas (Rate Limiting)
 
-El Caddyfile estándar no incluye rate limiting nativo — requiere el plugin `caddy-ratelimit` que no viene en la imagen oficial. Para activarlo hay dos opciones:
+Para proteger los proyectos de los usuarios y garantizar la estabilidad del host central, se han implementado dos niveles de rate limiting:
 
-### Opción A — Imagen personalizada con xcaddy
+### 1. En la API REST principal (api)
+Implementado a nivel de software en Express mediante `express-rate-limit`, restringiendo a un máximo de **100 peticiones por minuto por IP** para evitar abusos en peticiones de base de datos o autenticación.
 
-Crear `caddy/Dockerfile`:
-
-```dockerfile
-FROM caddy:2-builder AS builder
-RUN xcaddy build --with github.com/mholt/caddy-ratelimit
-
-FROM caddy:2
-COPY --from=builder /usr/bin/caddy /usr/bin/caddy
-```
-
-Actualizar `docker-compose.yml`:
-```yaml
-caddy:
-  build: ./caddy      # en vez de image: caddy:2-alpine
-```
-
-Agregar al `Caddyfile`:
-```
-http://*.localhost {
-    rate_limit {remote_host} 60r/m
-    reverse_proxy container-manager:5000
-}
-```
-
-### Opción B — Rate limiting en el container-manager (más simple)
-
-Agregar `express-rate-limit` en el proxy del container-manager para limitar por IP/subdominio sin necesidad de modificar Caddy.
+### 2. En el Proxy de Subdominios (container-manager) — Implementado (Opción B)
+Para los sitios web de los usuarios, se optó por implementar un rate limiter en memoria directamente en el proxy del Container Manager (`container-manager/src/proxy.js`). 
+*   **Límite:** Máximo de **100 peticiones por minuto por subdominio**.
+*   **Control:** Si una aplicación supera este umbral, el proxy responde de inmediato con un código **`429 Too Many Requests`**, previniendo que un ataque dirigido a un proyecto de un estudiante sature los recursos compartidos.
 
 ---
 
