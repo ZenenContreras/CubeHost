@@ -6,7 +6,9 @@ Plataforma de hosting de páginas web autogestionada basada en contenedores Dock
 
 ## Video de demostración
 
-[![Ver demo en YouTube](https://img.shields.io/badge/YouTube-Ver%20Demo-red?logo=youtube)](YOUTUBE_URL_PENDIENTE)
+[![Ver demo en YouTube](https://img.youtube.com/vi/ZgySHp4XxOo/0.jpg)](https://www.youtube.com/watch?v=ZgySHp4XxOo)
+
+[Ver video en youtube](https://www.youtube.com/watch?v=ZgySHp4XxOo)
 
 > **Nota:** El video muestra el flujo completo de la plataforma en acción: registro e inicio de sesión integrados con la API de Roble, creación y despliegue automatizado de un proyecto desde GitHub, acceso mediante subdominio dinámico local, apagado automático por inactividad tras 30 minutos y el reinicio automático bajo demanda al recibir tráfico web.
 
