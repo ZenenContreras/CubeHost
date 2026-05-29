@@ -61,7 +61,7 @@ async function runContainer(imageName, containerName, internalPort) {
 
 async function stopContainer(containerId) {
   try {
-    await docker.getContainer(containerId).stop({ t: 10 });
+    await docker.getContainer(containerId).stop({ t: 2 });
   } catch (err) {
     if (!err.statusCode || err.statusCode !== 304) throw err; // 304 = already stopped
   }

@@ -52,8 +52,8 @@ services:
       - DB_PATH=/data/containers.db
       - WORK_DIR=/tmp/cubehost-repos
       - INACTIVITY_TIMEOUT_MS=1800000
-      - CONTAINER_CPUS=0.5
-      - CONTAINER_MEMORY_MB=256
+      - CONTAINER_CPUS=1.0
+      - CONTAINER_MEMORY_MB=1024
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - containers_data:/data
